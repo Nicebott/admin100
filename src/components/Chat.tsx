@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ref, push, onValue, DataSnapshot, get } from "firebase/database";
 import { db } from '../firebase';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, X, Smile, Send } from 'lucide-react';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface Message {
   id: string;
@@ -20,7 +21,9 @@ const Chat: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const chatRef = ref(db, 'chat');
@@ -38,8 +41,10 @@ const Chat: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (isChatOpen && isUsernameSet) {
+      scrollToBottom();
+    }
+  }, [messages, isChatOpen, isUsernameSet]);
 
   useEffect(() => {
     setShowPasswordInput(username.toLowerCase() === 'admin');
@@ -90,6 +95,12 @@ const Chat: React.FC = () => {
 
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen);
+    setShowEmojiPicker(false);
+  };
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setNewMessage((prevMessage) => prevMessage + emojiData.emoji);
+    setShowEmojiPicker(false);
   };
 
   const renderChatContent = () => {
@@ -124,10 +135,10 @@ const Chat: React.FC = () => {
 
     return (
       <>
-        <div className="h-64 overflow-y-auto mb-4">
+        <div className="h-48 sm:h-64 md:h-80 overflow-y-auto mb-4" ref={chatContainerRef}>
           {messages.map((message) => (
             <div key={message.id} className="mb-2">
-              <p className="text-sm">
+              <p className="text-sm break-words">
                 <span className={`font-bold ${message.isAdmin ? 'text-blue-600' : ''}`}>
                   {message.username}
                   {message.isAdmin && ' ✓'}:
@@ -141,20 +152,34 @@ const Chat: React.FC = () => {
           ))}
           <div ref={messagesEndRef} />
         </div>
-        <form onSubmit={handleSubmit} className="flex">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            className="flex-grow border rounded-l-md px-2 py-1"
-            placeholder="Escribe un mensaje..."
-          />
-          <button
-            type="submit"
-            className="bg-blue-500 text-white px-4 py-1 rounded-r-md"
-          >
-            Enviar
-          </button>
+        <form onSubmit={handleSubmit} className="flex flex-col relative">
+          <div className="flex mb-2">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              className="flex-grow border rounded-l-md px-2 py-2 text-sm"
+              placeholder="Escribe un mensaje..."
+            />
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="bg-gray-200 px-2 py-2 flex-shrink-0"
+            >
+              <Smile size={20} />
+            </button>
+            <button
+              type="submit"
+              className="bg-blue-500 text-white px-3 py-2 rounded-r-md flex items-center justify-center flex-shrink-0"
+            >
+              <Send size={20} />
+            </button>
+          </div>
+          {showEmojiPicker && (
+            <div className="absolute right-0 bottom-full mb-2 z-10">
+              <EmojiPicker onEmojiClick={handleEmojiClick} />
+            </div>
+          )}
         </form>
       </>
     );
@@ -169,8 +194,13 @@ const Chat: React.FC = () => {
         <MessageCircle size={24} />
       </button>
       {isChatOpen && (
-        <div className="fixed bottom-20 right-4 bg-white shadow-md rounded-lg p-4 w-full max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl z-40">
-          <h2 className="text-xl font-bold mb-4">Chat en tiempo real</h2>
+        <div className="fixed bottom-20 right-4 bg-white shadow-md rounded-lg p-4 w-11/12 max-w-sm sm:w-80 md:w-96 z-40">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold">Chat en tiempo real</h2>
+            <button onClick={toggleChat} className="text-gray-500 hover:text-gray-700">
+              <X size={20} />
+            </button>
+          </div>
           {renderChatContent()}
         </div>
       )}
